@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum MindmapVisibility {
+  PRIVATE
+  PUBLIC
+  SHARED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  firstName     String?
+  lastName      String?
+  avatar        String?
+  role          Role      @default(USER)
+  isActive      Boolean   @default(true)
+  isVerified    Boolean   @default(false)
+  verifyToken   String?
+  resetToken    String?
+  resetExpires  DateTime?
+  refreshToken  String?
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  mindmaps      Mindmap[]
+  sharedMindmaps MindmapShare[]
+  activityLogs  ActivityLog[]
+
+  @@map("users")
+}
+
+model Mindmap {
+  id          String            @id @default(uuid())
+  title       String
+  description String?
+  data        Json              @default("{}")
+  thumbnail   String?
+  visibility  MindmapVisibility @default(PRIVATE)
+  isFavorite  Boolean           @default(false)
+  isArchived  Boolean           @default(false)
+  shareToken  String?           @unique
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shares      MindmapShare[]
+
+  @@index([userId])
+  @@index([visibility])
+  @@index([shareToken])
+  @@map("mindmaps")
+}
+
+model MindmapShare {
+  id          String   @id @default(uuid())
+  canEdit     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  mindmapId   String
+  mindmap     Mindmap  @relation(fields: [mindmapId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([mindmapId, userId])
+  @@map("mindmap_shares")
+}
+
+model Setting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       Json
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  action      String
+  entity      String
+  entityId    String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}

@@ -1,0 +1,36 @@
+# Development-only configuration
+# Use: docker-compose -f docker-compose.dev.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mindmap-postgres-dev
+    environment:
+      POSTGRES_USER: mindmap
+      POSTGRES_PASSWORD: mindmap_dev
+      POSTGRES_DB: mindmap
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - mindmap-dev-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: mindmap-redis-dev
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - mindmap-dev-network
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+
+networks:
+  mindmap-dev-network:
+    driver: bridge
