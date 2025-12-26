@@ -9,8 +9,27 @@ struct User: Codable, Identifiable {
     let role: String
     let isActive: Bool
     let isVerified: Bool
+    // These fields are optional since /auth/me doesn't return them
     let createdAt: String?
     let updatedAt: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, email, firstName, lastName, avatar, role, isActive, isVerified, createdAt, updatedAt
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        email = try container.decode(String.self, forKey: .email)
+        firstName = try container.decodeIfPresent(String.self, forKey: .firstName)
+        lastName = try container.decodeIfPresent(String.self, forKey: .lastName)
+        avatar = try container.decodeIfPresent(String.self, forKey: .avatar)
+        role = try container.decode(String.self, forKey: .role)
+        isActive = try container.decode(Bool.self, forKey: .isActive)
+        isVerified = try container.decode(Bool.self, forKey: .isVerified)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
+    }
     
     var displayName: String {
         if let first = firstName, let last = lastName {

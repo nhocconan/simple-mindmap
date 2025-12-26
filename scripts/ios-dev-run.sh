@@ -50,6 +50,9 @@ if [ -z "$BACKEND_URL" ]; then
     BACKEND_URL="http://localhost:4000"
 fi
 
+# Convert localhost to 127.0.0.1 for iOS Simulator compatibility
+BACKEND_URL=${BACKEND_URL//localhost/127.0.0.1}
+
 echo -e "${GREEN}✓${NC} Found backend URL: ${BLUE}$BACKEND_URL${NC}"
 
 # Extract API URL (add /api if not present)
@@ -58,7 +61,7 @@ if [[ "$BACKEND_URL" == *"/api" ]]; then
     API_BASE_URL="$BACKEND_URL"
 fi
 
-echo -e "${GREEN}✓${NC} API URL: ${BLUE}$API_BASE_URL${NC}"
+echo -e "${GREEN}✓${NC} API URL for iOS: ${BLUE}$API_BASE_URL${NC}"
 echo ""
 
 # Configure APIService.swift with backend URL
@@ -132,8 +135,8 @@ if [ $BUILD_STATUS -eq 0 ]; then
     # Install and launch
     echo -e "${YELLOW}Installing app on simulator...${NC}"
     
-    # Find the built app
-    APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "MindmapApp.app" -type d 2>/dev/null | head -1)
+    # Find the built app - exclude Index paths
+    APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -path "*/Build/Products/Debug-iphonesimulator/MindmapApp.app" -type d 2>/dev/null | grep -v Index | head -1)
     
     if [ -z "$APP_PATH" ]; then
         echo -e "${YELLOW}Searching in alternate location...${NC}"

@@ -11,17 +11,17 @@ enum APIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Invalid URL"
+            return "http://localhost:4000/api"
         case .invalidResponse:
-            return "Invalid response from server"
+            return "http://localhost:4000/api"
         case .unauthorized:
-            return "Unauthorized. Please login again."
+            return "http://localhost:4000/api"
         case .serverError(let message):
             return message
         case .decodingError(let error):
-            return "Failed to decode response: \(error.localizedDescription)"
+            return "http://localhost:4000/api"
         case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
+            return "http://localhost:4000/api"
         }
     }
 }
@@ -30,7 +30,8 @@ class APIService {
     static let shared = APIService()
     
     private var baseURL: String {
-        return "http://127.0.0.1:4000/api"
+        // Use 127.0.0.1 instead of localhost for iOS Simulator
+        return "http://localhost:4000/api"
     }
     
     private let session: URLSession
