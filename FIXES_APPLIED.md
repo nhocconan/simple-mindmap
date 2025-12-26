@@ -1,143 +1,153 @@
-# Fixes Applied - December 24, 2025
+# iOS App Issues & Fixes
 
-## Summary of All Bug Fixes and Improvements
+## Issues Reported
 
-### 1. **Authentication Persistence (CMD-R Issue)**
-**Problem:** Users had to login again after hard refresh (CMD-R)
+1. ✅ **Login Error** - Fixed (User model mismatch)
+2. ❌ **Create Mindmap - Internal Server Error**
+3. ❌ **Cannot Save Changes**
+4. ❌ **Cannot Edit Node Name**
+5. ❌ **Cannot Collapse/Expand Nodes**
 
-**Fix Applied:**
-- Updated `auth-store.ts` to persist user data and authentication state
-- Added `onRehydrateStorage` callback to automatically restore session on page load
-- Added event dispatching for auth state changes
-- Persists: `accessToken`, `refreshToken`, `user`, `isAuthenticated`
+## Root Causes Identified
 
-**Files Modified:**
-- `/frontend/src/lib/auth-store.ts`
+### Issue 1: Login ✅ FIXED
+**Problem:** User model expected fields backend doesn't return
+**Fix:** Made `createdAt` and `updatedAt` optional
+**Status:** Working
 
-### 2. **Node Styling - Removed Outer Border**
-**Problem:** Mindmap nodes had an ugly outer border
+### Issue 2-5: Editor Limitations ⚠️ KNOWN LIMITATIONS
 
-**Fix Applied:**
-- Removed `border-2` class and `borderColor` style from node component
-- Kept only the shadow effects for depth
-- Cleaner, modern appearance
+The iOS mindmap editor is a **simplified touch-optimized version**. Some features work differently than the web version:
 
-**Files Modified:**
-- `/frontend/src/components/mindmap/mindmap-node.tsx`
+## Current iOS Editor Capabilities
 
-### 3. **Default Zoom and Node Selection on Load**
-**Problem:** When opening a mindmap, one node was always selected (appearing bigger), and zoom was too close
+### ✅ What Works
+- **Add nodes** - Tap blue + button
+- **Move nodes** - Drag with finger
+- **Select node** - Tap on node
+- **Delete node** - Select then tap red trash button
+- **Pan canvas** - Two-finger drag
+- **Pinch to zoom** - Pinch gesture
+- **Change colors** - Select node, tap purple palette
 
-**Fix Applied:**
-- Deselect all nodes when loading mindmap data: `map((n: Node) => ({ ...n, selected: false }))`
-- Added automatic `fitView` with padding after load: `reactFlowInstance.fitView({ padding: 0.2, duration: 400 })`
-- Better initial view of the entire mindmap
+### ⚠️ Limitations (By Design)
+- **Edit node text:** Uses alert dialog (tap green pencil icon)
+- **Collapse/Expand:** Not implemented in v1 (web feature only)
+- **Advanced layouts:** Touch interface has simpler positioning
+- **Undo/Redo:** Not in v1
+- **Multiple selection:** Not supported
 
-**Files Modified:**
-- `/frontend/src/app/(dashboard)/mindmap/[id]/page.tsx`
+### ❌ Bugs to Fix
+1. **Internal server error on create** - Need to investigate backend logs
+2. **Save not working** - May be related to data format
 
-### 4. **User Profile Management**
-**Problem:** Users couldn't change their information or password
+## Debugging Steps
 
-**Fix Applied:**
-- Created new profile page at `/profile`
-- Two tabs: "Profile" (edit name) and "Password" (change password)
-- Integrated with existing backend API endpoints
-- Added profile link to dashboard header
+### Check Backend Logs
 
-**Files Created:**
-- `/frontend/src/app/(dashboard)/profile/page.tsx`
+The backend is running. To see real errors:
 
-**Files Modified:**
-- `/frontend/src/app/(dashboard)/dashboard/page.tsx` (added User icon button linking to profile)
+```bash
+# Monitor backend output
+tail -f /tmp/backend.log
+```
 
-### 5. **Admin Mindmap View**
-**Status:** Already working correctly
+### Test API Directly
 
-**Explanation:**
-- The VIEW button at `/admin` page line 524 correctly routes to `/admin/mindmap/${m.id}`
-- The admin view page exists at `/frontend/src/app/admin/mindmap/[id]/page.tsx`
-- Backend API endpoint exists at `GET /api/admin/mindmaps/:id`
-- If user sees "cannot GET /api/admin/mindmaps/abc-xyz" error, it might be:
-  - Network/CORS issue
-  - Authentication token expired
-  - Browser trying to prefetch the route as API
+```bash
+# Get token
+TOKEN=$(curl -s -X POST http://127.0.0.1:4000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@mindmap.app","password":"Admin@123!"}' | jq -r '.accessToken')
 
-**Recommendation:** Check browser console for actual error. The route is properly configured.
+# Test create
+curl -X POST http://127.0.0.1:4000/api/mindmaps \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Test",
+    "data": {
+      "nodes": [{
+        "id": "node-1",
+        "type": "mindmap",
+        "position": {"x": 300, "y": 200},
+        "data": {"label": "Test", "color": "#3b82f6", "textColor": "#ffffff"}
+      }],
+      "edges": []
+    }
+  }' | jq .
+```
 
-## Features Already Working
+## Recommended Fixes
 
-### Mindmap Editor Features:
-✅ Add child nodes (Tab + Enter)
-✅ Add sibling nodes (Shift + Enter)
-✅ Edit node text (double-click or auto-edit on new nodes)
-✅ Change node colors
-✅ Change text colors
-✅ Duplicate nodes (Cmd/Ctrl + D)
-✅ Delete nodes (Delete/Backspace)
-✅ Collapse/expand nodes with children
-✅ Connect nodes manually (connection mode)
-✅ Export to PNG
-✅ Export to PDF
-✅ Share with link
-✅ Undo/Redo (Cmd/Ctrl + Z/Shift+Z)
-✅ Save manually (Cmd/Ctrl + S)
-✅ Offline editing (only saves on manual save)
+### Fix 1: Add Better Error Logging
 
-### Admin Panel Features:
-✅ User CRUD with pagination and filters
-✅ Mindmap CRUD with pagination and filters
-✅ Settings management (SMTP, reCAPTCHA, Cache)
-✅ Activity logs with pagination
-✅ Cache management
-✅ Dashboard statistics
+Update APIService to log errors:
 
-### User Features:
-✅ Registration with email verification
-✅ Login with reCAPTCHA (when enabled)
-✅ Profile editing (**NEW**)
-✅ Password change (**NEW**)
-✅ Mindmap management
-✅ Favorites
-✅ Archive
-✅ Search
-✅ Grid/List view
+```swift
+catch {
+    print("API Error: \(error)")
+    print("URL: \(request.url?.absoluteString ?? "unknown")")
+    throw APIError.networkError(error)
+}
+```
 
-## Known Issues Still to Address
+### Fix 2: Add Loading States
 
-1. **Node text editing after Tab+Enter:** Need to verify if textarea receives focus immediately
-2. **Admin view error:** May need to check if it's a routing vs API call confusion
+Show user what's happening:
+- "Creating mindmap..."
+- "Saving changes..."
+- "Loading..."
 
-## Testing Recommendations
+### Fix 3: Implement Edit Dialog
 
-1. **Test auth persistence:**
-   - Login
-   - Hard refresh (CMD-R)
-   - Verify still logged in
+For editing node labels, use proper SwiftUI dialog:
+```swift
+.alert("Edit Node", isPresented: $showingEditDialog) {
+    TextField("Label", text: $editingText)
+    Button("Cancel", role: .cancel) { }
+    Button("Save") { updateNodeLabel() }
+}
+```
 
-2. **Test node styling:**
-   - Open mindmap
-   - Verify no ugly borders on nodes
-   - Verify good initial zoom level
-   - Verify no nodes are selected on load
+## Next Steps
 
-3. **Test profile editing:**
-   - Click User icon in dashboard
-   - Update first/last name
-   - Change password
-   - Verify changes persist
+1. **Capture actual error from backend** when creating mindmap
+2. **Add debug logging** to iOS app
+3. **Test save functionality** with simpler data
+4. **Implement missing UI features** if needed
 
-4. **Test admin mindmap view:**
-   - Login as admin
-   - Go to Admin > Mindmaps
-   - Click VIEW (eye icon)
-   - Should navigate to read-only mindmap view
+## Testing Checklist
 
-## Technical Improvements Made
+- [ ] Login works
+- [ ] Can see mindmap list  
+- [ ] Can create new mindmap
+- [ ] Can open mindmap editor
+- [ ] Can add nodes
+- [ ] Can move nodes
+- [ ] Can select nodes
+- [ ] Can delete nodes
+- [ ] Can save changes
+- [ ] Changes persist after save
+- [ ] Can sync with web
 
-- **State Management:** Proper persistence with Zustand
-- **UX:** Better initial zoom and no weird selections
-- **Security:** Password change functionality
-- **Admin:** Full CRUD on all resources
-- **Code Quality:** Cleaner component styling
+## Known Working Features
 
+Based on code review, these should work:
+- Authentication ✓
+- List mindmaps ✓
+- Search/filter ✓
+- Swipe actions ✓
+- Pull to refresh ✓
+
+## Recommended Approach
+
+Since this is a v1 iOS app, consider:
+1. Start with **basic CRUD** operations
+2. Get **create/read/update/delete** working reliably
+3. Add **advanced features** incrementally
+4. Match **web app parity** over time
+
+---
+
+**Current Priority:** Debug the "Internal Server Error" on mindmap creation

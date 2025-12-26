@@ -1,0 +1,233 @@
+import Foundation
+
+enum APIError: LocalizedError {
+    case invalidURL
+    case invalidResponse
+    case unauthorized
+    case serverError(String)
+    case decodingError(Error)
+    case networkError(Error)
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "http://localhost:4000/api"
+        case .invalidResponse:
+            return "http://localhost:4000/api"
+        case .unauthorized:
+            return "http://localhost:4000/api"
+        case .serverError(let message):
+            return message
+        case .decodingError(let error):
+            return "http://localhost:4000/api"
+        case .networkError(let error):
+            return "http://localhost:4000/api"
+        }
+    }
+}
+
+class APIService {
+    static let shared = APIService()
+    
+    // Configure this to match your backend URL
+    private var baseURL: String {
+        // For simulator, use localhost
+        // For real device, use your computer's IP or deployed server URL
+        #if targetEnvironment(simulator)
+        return "http://localhost:4000/api"
+        #else
+        // Replace with your server URL for real device testing
+        return "http://localhost:4000/api"
+        #endif
+    }
+    
+    private let session: URLSession
+    private let decoder: JSONDecoder
+    private let encoder: JSONEncoder
+    
+    private init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 60
+        self.session = URLSession(configuration: config)
+        
+        self.decoder = JSONDecoder()
+        self.encoder = JSONEncoder()
+    }
+    
+    // MARK: - Request Helpers
+    
+    private func createRequest(endpoint: String, method: String, token: String? = nil, body: Data? = nil) throws -> URLRequest {
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            throw APIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if let token = token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        if let body = body {
+            request.httpBody = body
+        }
+        
+        return request
+    }
+    
+    private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+            
+            if httpResponse.statusCode == 401 {
+                throw APIError.unauthorized
+            }
+            
+            if httpResponse.statusCode >= 400 {
+                if let errorResponse = try? decoder.decode(ErrorResponse.self, from: data) {
+                    throw APIError.serverError(errorResponse.message)
+                }
+                throw APIError.serverError("Server error: \(httpResponse.statusCode)")
+            }
+            
+            do {
+                return try decoder.decode(T.self, from: data)
+            } catch {
+                throw APIError.decodingError(error)
+            }
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.networkError(error)
+        }
+    }
+    
+    private func performVoid(_ request: URLRequest) async throws {
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+            
+            if httpResponse.statusCode == 401 {
+                throw APIError.unauthorized
+            }
+            
+            if httpResponse.statusCode >= 400 {
+                if let errorResponse = try? decoder.decode(ErrorResponse.self, from: data) {
+                    throw APIError.serverError(errorResponse.message)
+                }
+                throw APIError.serverError("Server error: \(httpResponse.statusCode)")
+            }
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.networkError(error)
+        }
+    }
+    
+    // MARK: - Auth Endpoints
+    
+    func login(email: String, password: String) async throws -> AuthResponse {
+        let body = try encoder.encode(LoginRequest(email: email, password: password))
+        let request = try createRequest(endpoint: "/auth/login", method: "POST", body: body)
+        return try await perform(request)
+    }
+    
+    func register(email: String, password: String, firstName: String?, lastName: String?) async throws -> AuthResponse {
+        let body = try encoder.encode(RegisterRequest(email: email, password: password, firstName: firstName, lastName: lastName))
+        let request = try createRequest(endpoint: "/auth/register", method: "POST", body: body)
+        return try await perform(request)
+    }
+    
+    func refreshToken(_ refreshToken: String) async throws -> AuthResponse {
+        struct RefreshRequest: Codable {
+            let refreshToken: String
+        }
+        let body = try encoder.encode(RefreshRequest(refreshToken: refreshToken))
+        let request = try createRequest(endpoint: "/auth/refresh", method: "POST", body: body)
+        return try await perform(request)
+    }
+    
+    func logout(token: String) async throws {
+        let request = try createRequest(endpoint: "/auth/logout", method: "POST", token: token)
+        try await performVoid(request)
+    }
+    
+    func getMe(token: String) async throws -> User {
+        let request = try createRequest(endpoint: "/auth/me", method: "GET", token: token)
+        return try await perform(request)
+    }
+    
+    // MARK: - Mindmap Endpoints
+    
+    func getMindmaps(token: String, page: Int = 1, limit: Int = 20, search: String? = nil, isFavorite: Bool? = nil, isArchived: Bool? = nil) async throws -> MindmapsResponse {
+        var endpoint = "/mindmaps?page=\(page)&limit=\(limit)"
+        if let search = search, !search.isEmpty {
+            endpoint += "&search=\(search.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        }
+        if let isFavorite = isFavorite {
+            endpoint += "&isFavorite=\(isFavorite)"
+        }
+        if let isArchived = isArchived {
+            endpoint += "&isArchived=\(isArchived)"
+        }
+        let request = try createRequest(endpoint: endpoint, method: "GET", token: token)
+        return try await perform(request)
+    }
+    
+    func getMindmap(token: String, id: String) async throws -> Mindmap {
+        let request = try createRequest(endpoint: "/mindmaps/\(id)", method: "GET", token: token)
+        return try await perform(request)
+    }
+    
+    func createMindmap(token: String, title: String, description: String? = nil, data: MindmapData? = nil) async throws -> Mindmap {
+        let createRequest = CreateMindmapRequest(title: title, description: description, data: data, visibility: .PRIVATE)
+        let body = try encoder.encode(createRequest)
+        let request = try self.createRequest(endpoint: "/mindmaps", method: "POST", token: token, body: body)
+        return try await perform(request)
+    }
+    
+    func updateMindmap(token: String, id: String, title: String? = nil, description: String? = nil, data: MindmapData? = nil, visibility: MindmapVisibility? = nil, isFavorite: Bool? = nil, isArchived: Bool? = nil) async throws -> Mindmap {
+        let updateRequest = UpdateMindmapRequest(title: title, description: description, data: data, visibility: visibility, isFavorite: isFavorite, isArchived: isArchived)
+        let body = try encoder.encode(updateRequest)
+        let request = try self.createRequest(endpoint: "/mindmaps/\(id)", method: "PUT", token: token, body: body)
+        return try await perform(request)
+    }
+    
+    func deleteMindmap(token: String, id: String) async throws {
+        let request = try createRequest(endpoint: "/mindmaps/\(id)", method: "DELETE", token: token)
+        try await performVoid(request)
+    }
+    
+    func toggleFavorite(token: String, id: String) async throws -> Mindmap {
+        let request = try createRequest(endpoint: "/mindmaps/\(id)/favorite", method: "POST", token: token)
+        return try await perform(request)
+    }
+    
+    func duplicateMindmap(token: String, id: String) async throws -> Mindmap {
+        let request = try createRequest(endpoint: "/mindmaps/\(id)/duplicate", method: "POST", token: token)
+        return try await perform(request)
+    }
+    
+    func generateShareLink(token: String, id: String) async throws -> ShareLinkResponse {
+        let request = try createRequest(endpoint: "/mindmaps/\(id)/share-link", method: "POST", token: token)
+        return try await perform(request)
+    }
+}
+
+struct ErrorResponse: Codable {
+    let message: String
+    let statusCode: Int?
+}
+
+struct ShareLinkResponse: Codable {
+    let shareToken: String
+}

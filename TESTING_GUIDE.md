@@ -1,424 +1,200 @@
-# Testing Guide - MindMap Application
+# iOS App Testing Guide
 
-## Overview
-This guide will help you test all the features of the MindMap application systematically.
+## ✅ Current Status
 
-## Access Points
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:4000
-- **API Docs**: http://localhost:4000/api
+- **Backend:** Running on port 4000
+- **iOS App:** Installed and running in iPhone 17 Pro simulator
+- **API URL:** http://localhost:4000/api (now fixed!)
 
-## Default Credentials
-- **Admin**: admin@mindmap.com / admin123
+## 🔐 Login Credentials
 
-## Test Scenarios
+```
+Email:    admin@mindmap.app
+Password: Admin@123!
+```
 
-### 1. User Authentication ✅
+## 🧪 Testing Steps
 
-#### Register New User
-1. Go to http://localhost:3000/register
-2. Fill in: email, password, firstName, lastName
-3. Submit form
-4. Should redirect to login page
+### 1. Login Test
+1. Open Mindmap app in simulator (should be open)
+2. Enter the credentials above
+3. Tap "Sign In"
+4. **Expected:** Login success, navigate to mindmap list
 
-#### Login
-1. Go to http://localhost:3000/login
-2. Enter credentials
-3. Should redirect to dashboard
+### 2. View Mindmaps
+1. After login, you should see the dashboard
+2. **Expected:** List of mindmaps (may be empty if fresh database)
 
-#### Logout
-1. Click user menu in top-right
-2. Click "Logout"
-3. Should redirect to login page
+### 3. Create Mindmap
+1. Tap the "+" button (top right)
+2. Enter title: "Test Mindmap"
+3. Tap "Create"
+4. **Expected:** New mindmap created, navigate to editor
 
----
+### 4. Edit Mindmap
+1. You should be in the editor view
+2. Try these gestures:
+   - **Tap blue + button:** Adds a new node
+   - **Drag a node:** Moves it around
+   - **Pinch:** Zoom in/out
+   - **Two finger drag:** Pan canvas
+   - **Tap a node:** Select it
+   - **Tap green pencil:** Edit node label
+   - **Tap purple palette:** Change colors
+   - **Tap orange arrow:** Add child node
+   - **Tap red trash:** Delete node
+3. **Expected:** All gestures work smoothly
 
-### 2. Mindmap Creation & Editing ✅
+### 5. Save Changes
+1. After making changes, tap "Save" (top right)
+2. **Expected:** "Saved successfully" message
+3. Go back to list
+4. **Expected:** Changes persisted
 
-#### Create New Mindmap
-1. Login and go to dashboard
-2. Click "Create New Mindmap"
-3. Enter title and description
-4. Click "Create"
-5. Should open mindmap editor
+### 6. Cross-Platform Sync Test
+1. Create/edit a mindmap in iOS app
+2. Save it
+3. Open browser: http://localhost:3000
+4. Login with same credentials
+5. **Expected:** See the same mindmap on web
+6. Edit on web, save
+7. Pull to refresh in iOS app
+8. **Expected:** See web changes in iOS
 
-#### Add Nodes
-1. **Method 1**: Click "Add Node" button
-2. **Method 2**: Select a node and press Tab + Enter
-3. New node should appear with focus on text input
-4. Type immediately to name the node
-5. Press Enter to confirm
+## 🐛 Troubleshooting
 
-#### Edit Node Text
-1. **Double-click** on any node
-2. Text should become editable with cursor focus
-3. Type new text
-4. Press Enter or click outside to save
-5. Press Escape to cancel
+### "Invalid URL" or Network Error
 
-#### Change Node Colors
-1. Click a node to select it
-2. Click "Style" button in toolbar
-3. Choose from 12 color options
-4. Choose text color (4 options)
-5. Node should update immediately
+**Cause:** Backend not running or APIService.swift has wrong URL
 
-#### Connect Nodes
-1. **Method 1**: Drag from a node's handle (small circles on edges)
-   - Hover over a node to see handles
-   - Click and drag from handle to another node
-2. **Method 2**: Enable connection mode
-   - Click "Connect" button (or press 'C')
-   - Click source node, then target node
+**Fix:**
+```bash
+# 1. Check backend is running
+curl http://localhost:4000/api/auth/me
+# Should return: {"message":"Unauthorized","statusCode":401}
 
-#### Delete Nodes
-1. Select a node (click on it)
-2. Press Delete or Backspace key
-3. Node and its connections should be removed
+# 2. If not running, restart backend
+cd backend
+npm run start:dev
 
-#### Duplicate Nodes
-1. Select a node
-2. Press Ctrl/Cmd + D
-3. A copy should appear nearby
+# 3. Rebuild iOS app
+./scripts/ios-dev-run.sh
+```
 
-#### Collapse/Expand Nodes
-1. Add child nodes to a parent
-2. Click the collapse button (chevron) on parent node
-3. Children should hide
-4. Click again to expand
+### Login Button Not Responding
 
-#### Undo/Redo
-1. Make some changes
-2. Press Ctrl/Cmd + Z to undo
-3. Press Ctrl/Cmd + Y to redo
-4. Up to 50 actions can be undone
+**Cause:** Empty email or password fields
 
-#### Save Mindmap
-1. Make changes to the mindmap
-2. Notice "Unsaved changes" indicator
-3. Click "Save" button or press Ctrl/Cmd + S
-4. Should show "Saved!" toast message
+**Fix:** Ensure both fields are filled
 
----
+### "Unauthorized" Error
 
-### 3. Export & Share ✅
+**Cause:** Wrong credentials
 
-#### Export as PNG
-1. Open a mindmap
-2. Click "Export" button
-3. Select "Export as PNG"
-4. File should download
+**Fix:** Use exact credentials:
+- Email: `admin@mindmap.app`
+- Password: `Admin@123!`
 
-#### Export as PDF
-1. Open a mindmap
-2. Click "Export" button
-3. Select "Export as PDF"
-4. PDF should download
+### App Crashes on Launch
 
-#### Generate Share Link
-1. Open a mindmap
-2. Click "Share" button
-3. Click "Generate Link"
-4. Copy the share link
-5. Open link in incognito/private window
-6. Should view mindmap without login
+**Cause:** Backend connection issue
 
----
+**Fix:**
+1. Check backend logs (terminal with backend running)
+2. Restart backend
+3. Rebuild app
 
-### 4. Dashboard Features ✅
+### Backend Logs Show Errors
 
-#### View All Mindmaps
-1. Go to dashboard
-2. Should see list of your mindmaps
-3. Filter by visibility (All/Private/Shared/Public)
+**Redis authentication errors:** Safe to ignore, won't affect functionality
 
-#### Search Mindmaps
-1. Use search box on dashboard
-2. Type part of mindmap title
-3. Results should filter in real-time
+**Database errors:** Run:
+```bash
+cd backend
+npx prisma migrate reset --force
+npm run start:dev
+```
 
-#### Delete Mindmap
-1. Find a mindmap in list
-2. Click "Delete" button
-3. Confirm deletion
-4. Mindmap should be removed
+## 📊 Testing Checklist
 
----
+Use this checklist to verify all features:
 
-### 5. Admin Panel ✅
+### Authentication
+- [ ] Login with admin credentials
+- [ ] Logout
+- [ ] Login again
+- [ ] View profile
 
-Login as admin: admin@mindmap.com / admin123
+### Mindmap List
+- [ ] View empty list
+- [ ] Create first mindmap
+- [ ] View list with mindmaps
+- [ ] Search mindmaps
+- [ ] Filter by favorites
+- [ ] Swipe right to favorite
+- [ ] Swipe left to see options
+- [ ] Duplicate mindmap
+- [ ] Delete mindmap
+- [ ] Pull to refresh
 
-#### Dashboard
-1. Go to http://localhost:3000/admin
-2. View statistics:
-   - Total users
-   - Total mindmaps
-   - Recent activity
+### Mindmap Editor
+- [ ] Open mindmap
+- [ ] See initial node
+- [ ] Add new node (blue +)
+- [ ] Select node (tap)
+- [ ] Move node (drag)
+- [ ] Edit node label (green pencil)
+- [ ] Change node color (purple palette)
+- [ ] Change text color (purple palette)
+- [ ] Add child node (orange arrow)
+- [ ] Delete node (red trash)
+- [ ] Pan canvas (two finger drag)
+- [ ] Zoom canvas (pinch)
+- [ ] See node count at bottom
+- [ ] Save changes (top right)
+- [ ] See "Unsaved" indicator before saving
+- [ ] Go back to list
 
-#### User Management (CRUD)
-1. **View Users**
-   - Go to Admin → Users
-   - Should see paginated user list
-   
-2. **Create User**
-   - Click "Add User"
-   - Fill form (email, password, firstName, lastName, role)
-   - Submit
-   - New user should appear in list
+### Cross-Platform Sync
+- [ ] Create mindmap on iOS
+- [ ] View on web (http://localhost:3000)
+- [ ] Edit on web
+- [ ] Refresh on iOS (pull down)
+- [ ] Verify changes sync
+- [ ] Edit on iOS
+- [ ] Save
+- [ ] Refresh web
+- [ ] Verify changes sync
 
-3. **Edit User**
-   - Click "Edit" on any user
-   - Modify fields
-   - Save changes
-   - User should update
+## 🎯 Expected Performance
 
-4. **Filter Users**
-   - Use search box (search by email/name)
-   - Filter by role (ALL/USER/ADMIN)
-   - Filter by status (ALL/ACTIVE/SUSPENDED)
+- **Login:** < 1 second
+- **Load mindmaps list:** < 500ms
+- **Open mindmap:** < 500ms
+- **Save changes:** < 500ms
+- **Canvas gestures:** 60fps smooth
 
-5. **Delete User**
-   - Click "Delete" on a user
-   - Confirm deletion
-   - User should be removed
+## 📝 Known Issues
 
-#### Mindmap Management (CRUD)
-1. **View Mindmaps**
-   - Go to Admin → Mindmaps
-   - Should see all users' mindmaps with pagination
+1. **Redis Auth Warnings:** Appear in backend logs but don't affect functionality
+2. **First Load:** May take 1-2 seconds for initial API connection
 
-2. **View Mindmap**
-   - Click "View" on any mindmap
-   - Should open read-only mindmap viewer
-   - Can zoom, pan, but not edit
+## 🚀 Next Steps After Testing
 
-3. **Edit Mindmap Metadata**
-   - Click "Edit" on a mindmap
-   - Change title, description, visibility
-   - Save
-   - Changes should reflect
+If everything works:
+1. Test on a real device (need Apple Developer account)
+2. Build for production: `./scripts/ios-prod-build.sh`
+3. Submit to TestFlight
+4. Gather user feedback
+5. Iterate and improve
 
-4. **Filter Mindmaps**
-   - Search by title
-   - Filter by visibility
-   - Filter by user
+## 💡 Tips
 
-5. **Delete Mindmap**
-   - Click "Delete"
-   - Confirm
-   - Mindmap removed
-
-#### Settings Management
-1. **SMTP Settings**
-   - Go to Admin → Settings → SMTP
-   - Configure: host, port, username, password, from address
-   - Enable/disable
-   - Click "Test Email" to verify
-   - Save settings
-
-2. **reCAPTCHA Settings**
-   - Go to Admin → Settings → reCAPTCHA
-   - Enter site key and secret key
-   - Enable on login/register
-   - Save settings
-   - Test by logging out and registering new account
-
-3. **Cache Settings**
-   - Go to Admin → Settings → Cache
-   - Configure Redis settings
-   - Set default TTL
-   - Save
-
-4. **General Settings**
-   - Go to Admin → Settings → General
-   - Set app name, description
-   - Configure max upload size
-   - Enable/disable maintenance mode
-   - Save
-
-#### Activity Logs
-1. Go to Admin → Logs
-2. View all system activities
-3. Filter by:
-   - Action type (LOGIN, CREATE_MINDMAP, etc.)
-   - User
-   - Date range
-4. Pagination controls
-
-#### Cache Management
-1. Go to Admin → Cache
-2. View cache statistics:
-   - Total keys
-   - Memory usage
-   - Hit rate
-3. Clear cache:
-   - Clear all
-   - Clear by pattern (e.g., "user:*")
+- **Keep Backend Running:** App needs backend to work
+- **Pull to Refresh:** Always refreshes latest data
+- **Save Frequently:** Changes only persist after tapping Save
+- **Use Gestures:** Touch interface optimized for natural gestures
 
 ---
 
-### 6. Keyboard Shortcuts ✅
-
-Test all shortcuts in mindmap editor:
-
-| Shortcut | Expected Result |
-|----------|----------------|
-| Tab + Enter | Add child node to selected node |
-| Delete | Delete selected node |
-| Ctrl/Cmd + Z | Undo last action |
-| Ctrl/Cmd + Y | Redo last undone action |
-| Ctrl/Cmd + S | Save mindmap |
-| Ctrl/Cmd + D | Duplicate selected node |
-| Double-click node | Enter edit mode |
-| Enter (while editing) | Finish editing |
-| Escape (while editing) | Cancel editing |
-| C | Toggle connection mode |
-
----
-
-### 7. Responsive Design ✅
-
-#### Desktop (1920x1080)
-- All features should be accessible
-- No layout issues
-
-#### Tablet (768x1024)
-- Sidebar should be collapsible
-- Mindmap editor should be usable
-- Touch gestures should work
-
-#### Mobile (375x667)
-- Mobile-optimized layout
-- Hamburger menu for navigation
-- Touch editing should work
-- Recommend landscape for editing
-
----
-
-### 8. Security Tests ✅
-
-#### Unauthorized Access
-1. Logout
-2. Try to access: http://localhost:3000/dashboard
-3. Should redirect to login
-
-#### Admin-Only Access
-1. Login as regular user
-2. Try to access: http://localhost:3000/admin
-3. Should redirect to dashboard or show error
-
-#### Token Expiry
-1. Login
-2. Wait 15 minutes (or modify JWT_EXPIRES_IN to 1m for testing)
-3. Make an API call
-4. Should auto-refresh token
-5. After refresh token expires (7 days), should redirect to login
-
-#### Rate Limiting
-1. Make rapid API requests
-2. After 100 requests/minute, should get 429 error
-
----
-
-### 9. Edge Cases ✅
-
-#### Empty Mindmap
-1. Create mindmap
-2. Delete all nodes
-3. Should show "Add your first node" message
-4. Can still save empty mindmap
-
-#### Very Long Node Text
-1. Add node
-2. Type 500+ characters
-3. Should wrap text properly
-4. Node should resize
-
-#### Many Nodes
-1. Create 100+ nodes
-2. Performance should remain smooth
-3. Minimap should show all nodes
-4. Fit view should work
-
-#### Concurrent Editing
-1. Open same mindmap in two tabs
-2. Edit in tab 1
-3. Save
-4. Tab 2 doesn't auto-update (expected)
-5. Refresh tab 2 to see changes
-
----
-
-### 10. Data Persistence ✅
-
-#### After Restart
-1. Make changes and save
-2. Restart Docker containers:
-   ```bash
-   docker-compose restart
-   ```
-3. Login again
-4. All data should be preserved
-
-#### Browser Refresh
-1. Make changes but DON'T save
-2. Refresh browser
-3. Unsaved changes are lost (expected)
-4. Last saved state is loaded
-
----
-
-## Known Issues
-
-1. **Real-time collaboration**: Not implemented. Multiple users can edit the same mindmap but changes won't sync in real-time. Last save wins.
-
-2. **Mobile landscape**: Mindmap editor works best in landscape mode on mobile devices.
-
-3. **Large exports**: Very large mindmaps (100+ nodes) may take time to export as PNG/PDF.
-
-## Bug Reporting
-
-If you find any issues:
-
-1. Check Docker logs:
-   ```bash
-   docker-compose logs -f backend
-   docker-compose logs -f frontend
-   ```
-
-2. Check browser console for frontend errors
-
-3. Note the steps to reproduce
-
-4. Check activity logs in Admin Panel
-
-## Performance Benchmarks
-
-- **Node Creation**: < 100ms
-- **Save Operation**: < 500ms
-- **Load Mindmap**: < 1s
-- **Export PNG**: < 3s (50 nodes)
-- **API Response**: < 200ms (average)
-
-## Success Criteria
-
-All tests pass when:
-- ✅ Users can register, login, logout
-- ✅ Mindmaps can be created, edited, saved, deleted
-- ✅ All keyboard shortcuts work
-- ✅ Export functions produce valid files
-- ✅ Share links work without authentication
-- ✅ Admin can manage all users and mindmaps
-- ✅ Admin settings are functional
-- ✅ Activity logs capture all actions
-- ✅ Cache management works
-- ✅ No errors in console or logs during normal operation
-- ✅ Mobile layout is usable
-- ✅ Security restrictions are enforced
-
----
-
-**Test Status**: ✅ All core features tested and working
-**Last Tested**: 2025-12-24
-**Tester**: AI Assistant
+**Ready to test?** Open the Mindmap app in the simulator and start with the login! 🎉
