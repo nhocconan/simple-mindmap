@@ -37,3 +37,10 @@ nginx/ssl/*.pem
 nginx/ssl/*.key
 nginx/ssl/*.crt
 !nginx/ssl/.gitkeep
+
+# Never commit these files - they may contain credentials
+*_CONFIGURATION.md
+*_STATUS.md
+*_RUNNING.md
+*_FIXED.md
+*_APPLIED.md
