@@ -44,3 +44,10 @@ nginx/ssl/*.crt
 *_RUNNING.md
 *_FIXED.md
 *_APPLIED.md
+
+# Never commit these files - they may contain credentials
+*_CONFIGURATION.md
+*_STATUS.md
+*_RUNNING.md
+*_FIXED.md
+*_APPLIED.md

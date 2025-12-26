@@ -56,7 +56,11 @@ mindmap-copilot/
 
 **All configuration uses the root `.env` file.**
 
-See [ENV_CONFIGURATION.md](./ENV_CONFIGURATION.md) for details.
+Key environment variables:
+- `POSTGRES_PASSWORD` - Database password
+- `REDIS_PASSWORD` - Redis password
+- `JWT_SECRET` - JWT signing secret
+- `NEXT_PUBLIC_API_URL` - Backend API URL (default: http://localhost:4000)
 
 ## 📱 Platforms
 
@@ -94,8 +98,6 @@ See [ENV_CONFIGURATION.md](./ENV_CONFIGURATION.md) for details.
 
 ## 📖 Documentation
 
-- [Environment Configuration](./ENV_CONFIGURATION.md) - **START HERE**
-- [Backend Setup](./BACKEND_RUNNING.md)
 - [iOS Development](./IOS_APP_RUNNING.md)
 - [Implementation Summary](./IMPLEMENTATION_SUMMARY.md)
 - [Testing Guide](./TESTING_GUIDE.md)
